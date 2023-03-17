@@ -3,7 +3,7 @@ tasks:
     init: make prepare # runs during prebuild
     command: |
       make run &
-      gp preview "4242-$GITPOD_WORKSPACE_URL/doc/book/installing/docker/"
+      gp preview "${GITPOD_WORKSPACE_URL/https:\/\//https://4242-}/doc/book/installing/docker/"
     openMode: tab-before
 
 # List the ports to expose. Learn more https://www.gitpod.io/docs/config-ports/
