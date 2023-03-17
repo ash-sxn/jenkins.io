@@ -2,7 +2,7 @@ tasks:
   - name: Start Preview server
     init: make prepare # runs during prebuild
     command: |
-      make run
+      make run &
       gp preview "$GITPOD_WORKSPACE_URL/doc/book/installing/docker/"
     openMode: tab-before
 
