@@ -27,7 +27,7 @@ If you need to restart Jenkins, simply follow the restart instructions in <<stop
 include::doc/tutorials/_prerequisites.adoc[]
 ** link:https://git-scm.com/downloads[Git], and optionally link:https://desktop.github.com/[GitHub Desktop].
 
-include::doc/book/installing/_run-jenkins-in-docker.adoc[]
+include::doc/book/installing/_docker-for-maven-tutorials.adoc[]
 
 
 [[fork-sample-repository]]

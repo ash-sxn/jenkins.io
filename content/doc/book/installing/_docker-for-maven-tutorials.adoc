@@ -1,0 +1,178 @@
+////
+This file is only meant to be included as a snippet in other documents.
+There is a version of this file for the general 'Installing Jenkins' page
+(index.adoc) and another for tutorials (_run-jenkins-in-docker.adoc).
+This file is for the _run-jenkins-in-docker.adoc page used in the tutorials.
+If you update content on this page, please ensure the changes are reflected in
+the sibling file _docker.adoc (used in index.adoc).
+////
+
+
+==== Jenkins docker-compose files 
+
+. Open up a terminal window.
+. All the docker-compose files used here are hosted on GitHub. Please clone the repository with:
+
+[source,bash]
+----
+git clone https://github.com/ash-sxn/GSoC-2023-docker-based-quickstart.git
+----
+. after cloning do `docker compose up -d maven` to start jenkins to  run maven tutorial.
+
+
+. Note: the docker-compose.yaml file in github repo contains containers from other tutorials too.
+
+. if you have trouble copying the from the document,Use the GitHub files for reference and follow the steps in the next sections.
+
+==== jenkins docker compose file 
+Create a `docker-compose.yaml` files. with command
+[source,bash]
+----
+vim docker-compose.yaml
+----
+. This will open vim text editor and create a new file `docker-compose.yaml`. you can use any text editor you like.
+paste the below content in this file.
+
+[source,bash]
+----
+services:
+  sidekick_service:
+    # Configuration for the sidekick service
+    image: ash191245141/jenkinsci-tutorials:sidekick_
+    stdin_open: true
+    tty: true
+    entrypoint: sh -c "/usr/local/bin/keygen.sh /ssh-dir"  # Runs the keygen.sh script and specifies the output directory
+    volumes:
+      - agent-ssh-dir:/ssh-dir  # Mounts the agent-ssh-dir volume to the /ssh-dir path inside the container
+    healthcheck:
+      test: [ "CMD-SHELL", "[ -f /ssh-dir/conductor_ok ] || exit 1" ]  # Checks if the conductor_ok file exists in the /ssh-dir path
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+  jenkins_controller:
+    image: ash191245141/jenkinsci-tutorials:simple_controller_
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home  # Mounts the jenkins_home volume to the /var/jenkins_home path inside the container
+      - agent-ssh-dir:/ssh-dir  # Mounts the agent-ssh-dir volume to the /app path inside the container
+    depends_on:
+      sidekick_service:
+        condition: service_completed_successfully  # Depends on the successful completion of the sidekick_service
+    healthcheck:
+      test: [ "CMD-SHELL", "[ -f /ssh-dir/conductor_ok ] || exit 1" ]  # Checks if the conductor_ok file exists in the /ssh-dir path
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      
+  maven:
+    image: ash191245141/jenkinsci-tutorials:maven_agent_
+    container_name: desktop-jenkins_agent-1
+    profiles:
+      - maven
+    depends_on:
+      sidekick_service:
+        condition: service_completed_successfully  # Depends on the successful completion of the sidekick_service
+      jenkins_controller:
+        condition: service_started 
+    healthcheck:
+      test: [ "CMD-SHELL", "[ -f /home/jenkins/.ssh/authorized_keys ] || exit 1" ]  # Checks if the authorized_keys file exists in the /home/jenkins/.ssh path
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - agent-ssh-dir:/home/jenkins/.ssh:ro  # Mounts the agent-ssh-dir volume to the /home/jenkins/.ssh path inside the container as read-only
+volumes:
+  jenkins_home:
+  agent-ssh-dir:
+    name: agent-ssh-dir  # Creates a named volume called agent-ssh-dir
+----
+NOTE: this docker-compose file uses pre-built images, if you wish to build images yourself please look for steps in provided github repositories README file
+<1> There are Three services in this docker compose file. These are:
+
+<2> `side_kick_service`, This service runs a custom script (keygen.sh) that creates new ssh-keys everytime jenkins is launched with this docker-compose file. and store's them in a shared volume.
+
+<3> `jenkins_controller`, This  service runs the main jenkins controller, it get's it's ssh key from shared volume `agent-ssh-dir:`, and can be viewed on port 8080
+  
+  
+<4> `maven`, This service is the custom jenkins agent on which we will run our maven tutorial, it also get's it ssh key from shared volume and depends on sucessflly starting sidekick_service and jenkins_controller. It's also in a profile named `maven` because 
+so We'll need maven keyword in our docker compose up command for it to start this container. 
+
+<5> There are also two volumes present in the docker compose file. which are `jenkins_home` and `agent-ssh-dir`.
+
+<6> `jenkins_home` is the main volume used by the jenkins controller.
+
+<7> `agent-ssh-dir` is the volume used for storing ssh-keys for agent and controller.
+
+<8> All the services uses healthcheck test in which they look for the approprite signals if the privious containers worked fine or not.
+
+==== On Windows
+
+The Jenkins project provides a Linux container image, not a Windows container image.
+Be sure that your Docker for Windows installation is configured to run `Linux Containers` rather than `Windows Containers`.
+See the Docker documentation for instructions to link:https://docs.docker.com/docker-for-windows/#switch-between-windows-and-linux-containers[switch to Linux containers].
+Once configured to run `Linux Containers`, the steps are same as Linux and MacOS from above
+
+==== Accessing the Docker container
+
+If you have some experience with Docker and you wish or need to access your
+Docker container through a terminal/command prompt using the
+link:https://docs.docker.com/engine/reference/commandline/exec/[`docker exec`]
+command, you can add an option like `--name jenkins-tutorial` to the `docker exec` command.
+That will access the Jenkins Docker container named "jenkins-tutorial".
+
+This means you could access your docker container (through a separate
+terminal/command prompt window) with a `docker exec` command like:
+
+`docker exec -it desktop-jenkins_controller-1 bash`
+
+[[accessing-the-jenkins-console-log-through-docker-logs]]
+==== Accessing the Docker logs
+
+There is a possibility you may need to access the Jenkins console log, for
+instance, when <<unlocking-jenkins,Unlocking Jenkins>> as part of the
+<<setup-wizard,Post-installation setup wizard>>.
+
+The Jenkins console log is easily accessible through the terminal/command
+prompt window from which you executed the `docker run ...` command.
+In case if needed you can also access the Jenkins console log through the
+link:https://docs.docker.com/engine/reference/commandline/logs/[Docker logs] of
+your container using the following command:
+
+`docker logs <docker-container-name>`
+
+Your `<docker-container-name>` can be obtained using the `docker ps` command.
+
+
+==== Accessing the Jenkins home directory
+
+There is a possibility you may need to access the Jenkins home directory, for
+instance, to check the details of a Jenkins build in the `workspace`
+subdirectory.
+
+You can access the contents of the Jenkins home
+directory through your container's terminal/command prompt using the
+link:https://docs.docker.com/engine/reference/commandline/container_exec/[`docker container exec`]
+command:
+
+`docker container exec -it <docker-container-name> bash`
+
+As mentioned <<accessing-the-jenkins-console-log-through-docker-logs,above>>,
+your `<docker-container-name>` can be obtained using the
+link:https://docs.docker.com/engine/reference/commandline/container_ls/[`docker container ls`]
+command. 
+
+////
+Might wish to add explaining the `docker run -t` option, which was covered in
+the old installation instructions but not above.
+
+Also mention that spinning up a container of the `jenkins/jenkins` Docker
+image can be done so with all the same
+https://github.com/jenkinsci/docker#usage[configuration options] available to
+the other images published by the Jenkins project.
+
+Explain colon syntax on Docker image references like
+`jenkins/jenkins:latest'.
+////
